@@ -672,6 +672,23 @@ class ValidationValidatorTest extends TestCase
         $this->assertFalse($v->passes());
     }
 
+    public function testValidateArrayKeys()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $rules = ['user' => 'array:name,username'];
+
+        $v = new Validator($trans, ['user' => ['name' => 'Duilio', 'username' => 'duilio']], $rules);
+        $this->assertTrue($v->passes());
+
+        // The array is valid if there's a missing key.
+        $v = new Validator($trans, ['user' => ['name' => 'Duilio']], $rules);
+        $this->assertTrue($v->passes());
+
+        // But it's not valid if there's an unexpected key.
+        $v = new Validator($trans, ['user' => ['name' => 'Duilio', 'username' => 'duilio', 'is_admin' => true]], $rules);
+        $this->assertFalse($v->passes());
+    }
+
     public function testValidateFilled()
     {
         $trans = $this->getIlluminateArrayTranslator();
@@ -2601,6 +2618,7 @@ class ValidationValidatorTest extends TestCase
             ['https://domain12/'],
             ['https://domain12#fragment'],
             ['https://domain1/path'],
+            ['https://domain.com/path/%2528failed%2526?param=1#fragment'],
         ];
     }
 
@@ -5184,6 +5202,21 @@ class ValidationValidatorTest extends TestCase
         );
         $this->assertTrue($validator->fails());
         $this->assertSame(['mouse' => ['validation.required']], $validator->messages()->toArray());
+    }
+
+    public function testExcludeWithout()
+    {
+        $validator = new Validator(
+            $this->getIlluminateArrayTranslator(),
+            ['region' => 'South'],
+            [
+                'country' => 'exclude_without:region|nullable|required_with:region|string|min:3',
+                'region' => 'exclude_without:country|nullable|required_with:country|string|min:3',
+            ]
+        );
+
+        $this->assertTrue($validator->fails());
+        $this->assertSame(['country' => ['validation.required_with']], $validator->messages()->toArray());
     }
 
     public function testExcludeValuesAreReallyRemoved()
